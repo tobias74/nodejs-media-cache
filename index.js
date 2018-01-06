@@ -6,8 +6,8 @@ options.mongoDbNameOriginals = 'original_images_' + env;
 options.mongoDbNameTranscoded = 'cached_images_' + env;
 
 
-var mediaTranscoder=require('./media-transcoder')(options);
-var originalMediaStorage = require('./original-media-storage')(options);
+var mediaTranscoder=require('./src/media-transcoder')(options);
+var originalMediaStorage = require('./src/original-media-storage')(options);
 
 
 

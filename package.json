@@ -1,11 +1,11 @@
 {
-  "name": "express-image-server",
+  "name": "nodejs-media-cache",
   "version": "0.1.0",
-  "description": "serves images within express-applications",
+  "description": "image and video cache for nodejs",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
-  "license": "BSD-2-Clause"
+  "license": "MIT"
 }
