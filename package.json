@@ -14,7 +14,7 @@
     ]
   ],
   "_from": "nodejs-media-cache@latest",
-  "_id": "nodejs-media-cache@0.1.0",
+  "_id": "nodejs-media-cache@0.2.0",
   "_inCache": true,
   "_location": "/nodejs-media-cache",
   "_nodeVersion": "7.2.0",
@@ -70,5 +70,5 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "version": "0.1.0"
+  "version": "0.2.0"
 }
