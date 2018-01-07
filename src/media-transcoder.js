@@ -12,7 +12,64 @@ module.exports = function(options){
     imageMagick: true
   });
 
+  var temp = require('temp');
+  var fs = require('fs');
+  var child_process = require('child_process');
   var async = require('async');
+
+  var amqp = require('amqplib/callback_api');
+  
+  var amqpVideoConverterChannel;
+  var amqpImageConverterChannel;
+
+  if (options.enableVideo){
+    
+    amqp.connect('amqp://' + options.rabbitMqUser + ':' + options.rabbitMqPassword + '@' + options.rabbitMqUrl, function(err, conn) {
+      if (err){
+        console.log(err);
+      }
+      
+      var myChannels = [options.converterQueueNameVideos, options.converterQueueNameImages].map(function(queueName){
+        return conn.createChannel(function(err, ch) {
+          if (err){
+            console.log(err);
+          }
+          ch.assertQueue(queueName, {durable: true});
+        });
+      });
+      amqpVideoConverterChannel = myChannels[0];
+      amqpImageConverterChannel = myChannels[1];
+  
+    });
+  }
+  
+  
+  
+  
+  var announceMediaForTranscoding = function(mediaId, bundleData){
+      originalMediaStorage.getMedia(mediaId, function(err, mediaFile){
+        var simpleType = mediaFile.contentType.substring(0,5).toLowerCase();
+        if (simpleType === 'video') {
+          amqpVideoConverterChannel.sendToQueue(options.converterQueueNameVideos, new Buffer(JSON.stringify({
+              'mediaId': mediaId,
+              'bundleData': bundleData
+          })), {persistent: true});
+          console.log(" [x] Sent video-message to announce for converting!'");  
+        }
+        else if (simpleType === 'image') {
+          amqpImageConverterChannel.sendToQueue(options.converterQueueNameImages, new Buffer(JSON.stringify({
+              'mediaId': mediaId,
+              'bundleData': bundleData
+          })), {persistent: true});
+          console.log(" [x] Sent image-message to announce for converting!'");  
+        }
+        else {
+          console.log('no file Type for transcoding?');
+        }
+
+        
+      });
+  };
 
   var mongoDbNameTranscoded = options.mongoDbNameTranscoded || 'ems_cached_media';
 
@@ -34,6 +91,90 @@ module.exports = function(options){
       console.log(bucket);
   });
 
+
+
+  var getVideo = function(stringFileId, callback){
+    var fileId = new mongo.ObjectID(stringFileId);
+    var gridStore = new mongo.GridStore(db, fileId, 'r');
+    gridStore.open(callback);
+  };
+  
+  var getRangedVideoStream = function(stringFileId, rangeData){
+    console.log('rnagedata start ' + rangeData.start);
+    var readstream = gfs.createReadStream({
+      _id: stringFileId,
+      range: {
+        startPos: rangeData.start,
+        endPos: rangeData.end
+      }   
+    });
+    return readstream;
+  };
+
+  var storeVideoByFile = function(filePath,contentType,callback){
+
+    var fileId = new mongo.ObjectID();
+    var gridStore = new mongo.GridStore(db, fileId, 'w', {content_type: contentType});
+    
+    var fileHandle = fs.openSync(filePath, 'r', 0666);
+    
+    gridStore.open(function(err, gridStore){
+      gridStore.writeFile(fileHandle, function(err, doc){
+        callback({
+          fileId: fileId
+        });
+      });
+    });
+    
+  };
+  
+  
+  
+  var introduceTranscodedVideo = function(payloadId, videoData,  callback){
+    db.collection('transcoded-videos').insert([{
+      payloadId: payloadId,
+      mp4: videoData.mp4,
+      ogv: videoData.ogv,
+      webm: videoData.webm,
+      jpg: videoData.jpg,
+      status: 'completed'
+    }], function(err, result){
+      callback(null);
+    });
+  };
+  
+
+  var findTranscodedVideo = function(payloadId, callback){
+    db.collection('transcoded-videos').findOne({payloadId: payloadId}, function(err, transcodedVideoData){
+      callback(transcodedVideoData);
+    });
+  };
+  
+  var deleteTranscodedVideos = function(payloadId){
+    
+    findTranscodedVideo(payloadId, function(transcodedVideoData){
+      
+      var deleteChecker = function(err){
+        if (err){
+          console.log('------------------------------------------------------------------did not find the file to delete');
+          console.log(err);
+        }
+      };
+      
+      bucket.delete(transcodedVideoData.mp4, deleteChecker);
+      bucket.delete(transcodedVideoData.ogv, deleteChecker);
+      bucket.delete(transcodedVideoData.webm, deleteChecker);
+      bucket.delete(transcodedVideoData.jpg, deleteChecker);
+
+      db.collection('transcoded-videos').remove({payloadId: payloadId}, function(err, countDoc){
+        console.log('deleted: ' + countDoc);
+      });
+      
+    });
+    
+    
+  };
+
   var executeTranscodingJob = function(mediaId,mainCallback){
     
     originalMediaStorage.getMedia(mediaId, function(err, mediaFile){
@@ -44,53 +185,105 @@ module.exports = function(options){
         }
         var simpleType = mediaFile.contentType.substring(0,5).toLowerCase();
         
-    		var commandFunctions = [{pixel:200,name:'small'},{pixel:600,name:'medium'},{pixel:1200,name:'big'},{pixel:false,name:'original'}].map(function(imageSize){
-    		  return function(callback){
-    		    console.log('executing for ' + imageSize.pixel);
+        if (simpleType === 'video') {
+          originalMediaStorage.getMediaStream(mediaId, function(err, mediaStream){
+            if (err) {
+              console.log(err);
+              mainCallback(err);
+              return;
+            }
+            var tempStream = temp.createWriteStream();
+            var pathToTempFile = tempStream.path;
+            mediaStream.pipe(tempStream);
+            mediaStream.on('end', function(){
+              var targetStream = temp.createWriteStream();
+              var commandPath = __dirname + '/buzzconverter.sh ' + pathToTempFile + ' ' + targetStream.path;
+              console.log(commandPath);
+              child_process.exec(commandPath, function(error,stdout,stderr){
+                console.log('finished transcoding.');
+                async.series({
+                  'mp4': function(callback){
+                    storeVideoByFile(targetStream.path+'.mp4', 'video/mp4', function(fileData){
+                      callback(null, fileData.fileId);
+                    });
+                  },
+                  'ogv': function(callback){
+                    storeVideoByFile(targetStream.path+'.ogv', 'video/ogv', function(fileData){
+                      callback(null, fileData.fileId);
+                    });
+                  },
+                  'webm': function(callback){
+                    storeVideoByFile(targetStream.path+'.webm', 'video/webm', function(fileData){
+                      callback(null, fileData.fileId);
+                    });
+                  },
+                  'jpg': function(callback){
+                    storeVideoByFile(targetStream.path+'.jpg', 'image/jpg', function(fileData){
+                      callback(null, fileData.fileId);
+                    });
+                  }
+                }, function(err, results){
+                    introduceTranscodedVideo(mediaId, results, function(){
+                      mainCallback();
+                    });
+                });      
+              });
+            });
+          });
+        }
+        else if (simpleType === 'image') {
 
-            originalMediaStorage.getMediaStream(mediaId, function(err, image){
+      		var commandFunctions = [{pixel:200,name:'small'},{pixel:600,name:'medium'},{pixel:1200,name:'big'},{pixel:false,name:'original'}].map(function(imageSize){
+      		  return function(callback){
+      		    console.log('executing for ' + imageSize.pixel);
 
-          		var newImage = imageMagick(image);
-              if (imageSize.pixel) {
-                newImage.resize(imageSize.pixel, imageSize.pixel);
-              }
-              // @see http://www.imagemagick.org/Usage/thumbnails/#cut
-              newImage.autoOrient().stream(function(err, stdout, stderr) {
-                if (err) {
-                    console.log('error in hreer');
+              originalMediaStorage.getMediaStream(mediaId, function(err, image){
+
+            		var newImage = imageMagick(image);
+                if (imageSize.pixel) {
+                  newImage.resize(imageSize.pixel, imageSize.pixel);
                 }
-                stderr.pipe(process.stderr);
-        
-                var writestream = gfs.createWriteStream({
-                    metadata: {
-                        id: mediaId,
-                        size: imageSize.name
-                    }
-                });
-                stdout.pipe(writestream);
-                writestream.on('close', function (file) {
-                  introduceCachedImage({
-                    imageId: mediaId,
-                    imageSize: imageSize.name, 
-                    fileId: file._id
-                  }, function(){
-                    callback(null, 'tobias');
+                // @see http://www.imagemagick.org/Usage/thumbnails/#cut
+                newImage.autoOrient().stream(function(err, stdout, stderr) {
+                  if (err) {
+                      console.log('error in hreer');
+                  }
+                  stderr.pipe(process.stderr);
+          
+                  var writestream = gfs.createWriteStream({
+                      metadata: {
+                          id: mediaId,
+                          size: imageSize.name
+                      }
+                  });
+                  stdout.pipe(writestream);
+                  writestream.on('close', function (file) {
+                    introduceCachedImage({
+                      imageId: mediaId,
+                      imageSize: imageSize.name, 
+                      fileId: file._id
+                    }, function(){
+                      callback(null, 'tobias');
+                    });
                   });
                 });
-              });
-      		  });
-      		};
-        });
+        		  });
+        		};
+          });
 
 
-    		commandFunctions.push(function(callback){
-            mainCallback();
-            callback(null, 'tobias');
-    		});
-    		
-    		async.series(commandFunctions);
+      		commandFunctions.push(function(callback){
+              mainCallback();
+              callback(null, 'tobias');
+      		});
+      		
+      		async.series(commandFunctions);
 
-
+        }
+        else {
+          console.log('no file type?');
+        }
+      
     });
 
 
@@ -116,20 +309,18 @@ module.exports = function(options){
   };  
 
   var findCachedImage = function(imageId, imageSize, callback){
-    db.collection('resized-images').findOne({imageId: safeObjectId(imageId), imageSize:imageSize}, function(err, doc){
+    db.collection('resized-images').findOne({imageId: imageId, imageSize:imageSize}, function(err, doc){
       if(err)
       {
         console.log('in find cahced image we have error: ' + err);
         console.log(err);
       }
-      console.log('this is what we found in findcachedimage---------------------' + imageId + ' --- ' +imageSize);
-      console.log(doc);
       callback(doc);
     });
   };
 
   var findAllCachedImages = function(imageId, callback){
-    db.collection('resized-images').find({imageId: safeObjectId(imageId)}, function(err, doc){
+    db.collection('resized-images').find({imageId: imageId}, function(err, doc){
       if(err)
       {
         console.log(err);
@@ -188,9 +379,15 @@ module.exports = function(options){
     
 
   return {
+      announceMediaForTranscoding: announceMediaForTranscoding,
       executeTranscodingJob: executeTranscodingJob,
+      findTranscodedVideo: findTranscodedVideo,
+      getRangedVideoStream: getRangedVideoStream,
+      getVideo: getVideo,
       deleteCachedImage: deleteCachedImage,
+      deleteTranscodedVideos: deleteTranscodedVideos,
       getImageStreamFromCache: getImageStreamFromCache
+
   };
     
     
