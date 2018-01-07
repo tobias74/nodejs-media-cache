@@ -64,6 +64,10 @@
       "email": "tobias@gaszmann.de"
     }
   ],
+  "repository" :{ 
+    "type" : "git",
+    "url" : "https://github.com/tobias74/nodejs-media-cache"
+  },  
   "name": "nodejs-media-cache",
   "optionalDependencies": {},
   "readme": "ERROR: No README data found!",
