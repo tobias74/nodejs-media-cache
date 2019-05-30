@@ -64,15 +64,15 @@
       "email": "tobias@gaszmann.de"
     }
   ],
-  "repository" :{ 
-    "type" : "git",
-    "url" : "https://github.com/tobias74/nodejs-media-cache"
-  },  
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tobias74/nodejs-media-cache"
+  },
   "name": "nodejs-media-cache",
   "optionalDependencies": {},
   "readme": "ERROR: No README data found!",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "version": "0.2.1"
+  "version": "0.3.0"
 }
