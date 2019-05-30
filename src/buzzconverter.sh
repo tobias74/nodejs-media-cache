@@ -18,7 +18,7 @@ then
     echo "Finished webm"
  
     echo "Converting $filename to h264"
-    avconv -i "$1" -acodec libvo_aacenc -ac 2 -ab 192k -vcodec libx264 -level 21 -refs 2 -b:v 2000k -threads 0 "$targetDirectory/$targetBasename.mp4"
+    avconv -i "$1" -acodec aac -ac 2 -ab 192k -vcodec libx264 -level 21 -refs 2 -b:v 2000k -threads 0 "$targetDirectory/$targetBasename.mp4"
     echo "Finished h264"
 
 
