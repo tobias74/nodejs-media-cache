@@ -13,9 +13,11 @@
       "/var/projects/ist.nich.test"
     ]
   ],
-  "_from": "nodejs-media-cache@latest",
-  "_id": "nodejs-media-cache@0.2.0",
+  "_from": "nodejs-media-cache@0.3.0",
+  "_id": "nodejs-media-cache@0.3.0",
+  "_inBundle": false,
   "_inCache": true,
+  "_integrity": "sha512-uf03CN4IlYCy8nnh/6vFu8hJ5rucoD+4/Iqb0HYuLjs82/LQ/OZSzFuKFhprE2CzJogsyBV44gdmGYwx99r1sQ==",
   "_location": "/nodejs-media-cache",
   "_nodeVersion": "7.2.0",
   "_npmOperationalInternal": {
@@ -29,25 +31,31 @@
   "_npmVersion": "3.10.9",
   "_phantomChildren": {},
   "_requested": {
-    "raw": "nodejs-media-cache",
-    "scope": null,
-    "escapedName": "nodejs-media-cache",
+    "type": "version",
+    "registry": true,
+    "raw": "nodejs-media-cache@0.3.0",
     "name": "nodejs-media-cache",
-    "rawSpec": "",
-    "spec": "latest",
-    "type": "tag"
+    "escapedName": "nodejs-media-cache",
+    "rawSpec": "0.3.0",
+    "saveSpec": null,
+    "fetchSpec": "0.3.0"
   },
   "_requiredBy": [
     "#USER",
     "/"
   ],
-  "_resolved": "https://registry.npmjs.org/nodejs-media-cache/-/nodejs-media-cache-0.1.0.tgz",
-  "_shasum": "6a2379437a4e9ea2a18b9d3ad2db082e07ae3253",
+  "_resolved": "https://registry.npmjs.org/nodejs-media-cache/-/nodejs-media-cache-0.3.0.tgz",
+  "_shasum": "dab4d5d11f62cd22bf069be03228419de02fdec0",
   "_shrinkwrap": null,
-  "_spec": "nodejs-media-cache",
-  "_where": "/var/projects/ist.nich.test",
+  "_spec": "nodejs-media-cache@0.3.0",
+  "_where": "/usr/src/app/backend",
   "author": "",
+  "bugs": {
+    "url": "https://github.com/tobias74/nodejs-media-cache/issues"
+  },
+  "bundleDependencies": false,
   "dependencies": {},
+  "deprecated": false,
   "description": "image and video cache for nodejs",
   "devDependencies": {},
   "directories": {},
@@ -56,6 +64,7 @@
     "tarball": "https://registry.npmjs.org/nodejs-media-cache/-/nodejs-media-cache-0.1.0.tgz"
   },
   "gitHead": "bd477d7dca164836fa683143b1d9ec07b6409ee3",
+  "homepage": "https://github.com/tobias74/nodejs-media-cache#readme",
   "license": "MIT",
   "main": "index.js",
   "maintainers": [
@@ -64,15 +73,14 @@
       "email": "tobias@gaszmann.de"
     }
   ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/tobias74/nodejs-media-cache"
-  },
   "name": "nodejs-media-cache",
   "optionalDependencies": {},
-  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tobias74/nodejs-media-cache.git"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "version": "0.3.0"
+  "version": "0.4.0"
 }
