@@ -14,10 +14,7 @@ module.exports = function(options) {
 
 
   var originalMediaStorage = require('./original-media-storage')(options);
-  var mongo = require('mongodb');
-  var GridFSBucket = require('mongodb').GridFSBucket;
 
-  var GridStream = require('gridfs-stream');
   var gm = require('gm');
 
   var imageMagick = gm.subClass({

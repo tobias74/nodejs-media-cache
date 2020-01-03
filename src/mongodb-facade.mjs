@@ -29,7 +29,6 @@ export class MongoDbFacade {
       }
 
       this.db = client.db(this.databaseName);
-      console.log('we tr to open the gridstream');
       this.myGfsBucket = new this.gridFsBucket(this.db);
 
       this.isConnectedResolver(true);
@@ -53,7 +52,7 @@ export class MongoDbFacade {
             metadata: metadata
           });
           stream.pipe(writeStream);
-          writeStream.on('close', function(file) {
+          writeStream.on('finish', function(file) {
             resolve(file);
           });
         });
