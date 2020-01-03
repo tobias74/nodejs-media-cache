@@ -21,7 +21,7 @@ export class MongoDbFacade {
 
   connect() {
     let MongoClient = this.mongodb.MongoClient;
-    let client = new MongoClient(this.url);
+    let client = new MongoClient(this.url, { useUnifiedTopology: true });
     client.connect(err => {
       if (err) {
         console.log(err);
