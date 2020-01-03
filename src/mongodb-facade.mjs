@@ -7,7 +7,6 @@ export class MongoDbFacade {
     this.url = url;
     this.databaseName = databaseName;
 
-    this.fs = require('fs');
     this.mongodb = require('mongodb');
     this.gridFsBucket = require('mongodb').GridFSBucket;
 
@@ -63,32 +62,27 @@ export class MongoDbFacade {
     });
   }
 
-  async getGridFile(fileId, mode) {
-    return this.isConnected.then((isConnected) => {
-      if (isConnected) {
-        return new Promise((resolve, reject) => {
+  async getGridFile(fileId) {
 
-            var objectId = new this.mongodb.ObjectID(fileId);
-        
-            var gridStore = new this.mongodb.GridStore(this.db, objectId, mode);
-        
-            gridStore.open(function(err, gridStore) {
-              if (err) {
-                console.log(err);
-                reject('could not get gridfile');
-              }
-              if (gridStore.length > 0) {
-                resolve(gridStore);
-              } else {
-                console.log('the file had length zero...');
-                reject('filelength zero??');
-              }
-        
-            });
+    if (await this.isConnected) {
+    
+      var objectId = new this.mongodb.ObjectID(fileId);
 
-        });
-      }
-    });
+      var cursor = this.myGfsBucket.find({
+        '_id': objectId
+      });
+      
+      var results = await cursor.toArray();
+
+      var myResult = results[0];
+  
+      if (!myResult) {
+        throw new Error("in getGridFile, we could not get the gridfile with id " + fileId);  
+      } 
+      
+      return myResult;
+    }
+
   }
 
   async getGridFileStream(fileId, options) {

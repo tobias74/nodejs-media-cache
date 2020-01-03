@@ -21,7 +21,7 @@ module.exports = function(options) {
 
 
   var getMedia = function(stringFileId, callback) {
-    mongoDbFacade.getGridFile(stringFileId, 'r').then((gridFile) => {
+    mongoDbFacade.getGridFile(stringFileId).then((gridFile) => {
       callback(null, gridFile);
     }, (err) => {
       console.log(err);

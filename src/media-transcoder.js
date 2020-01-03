@@ -90,7 +90,7 @@ module.exports = function(options) {
 
 
   var getVideo = function(stringFileId, callback) {
-    return mongoDbFacade.getGridFile(stringFileId, 'r').then((gridFile) => {
+    return mongoDbFacade.getGridFile(stringFileId).then((gridFile) => {
       callback(null, gridFile);
     }, (err) => {
       callback(err);
@@ -375,8 +375,13 @@ module.exports = function(options) {
       
       var myResult = results[0];
       
-      var readstream = bucket.openDownloadStream(myResult._id);
-      return readstream;
+      if (myResult) {
+        var readstream = bucket.openDownloadStream(myResult._id);
+        return readstream;
+      }
+      else {
+        throw "file not found 2183769678";
+      }
     }
   };
 
