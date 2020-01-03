@@ -53,38 +53,16 @@ export class MongoDbFacade {
           });
           stream.pipe(writeStream);
           writeStream.on('finish', function(file) {
-            resolve(file);
+            if (file._id !== writeStream.id) {
+              console.log('ERR: GridFS-Misunderstanding!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+            }
+            resolve(writeStream.id);
           });
         });
       }
     });
   }
 
-  async storeFileByPath(filePath, data) {
-    return this.isConnected.then((isConnected) => {
-      if (isConnected) {
-        return new Promise((resolve, reject) => {
-
-        	var fileId = new this.mongodb.ObjectID();
-        	var gridStore = new this.mongodb.GridStore(this.db, fileId, 'w', data);
-        	var fileHandle = this.fs.openSync(filePath, 'r', '0666');
-        	
-        	gridStore.open(function(err, gridStore){
-        	    if (err) {
-        	        console.log(err);
-        	    }
-        		gridStore.writeFile(fileHandle, function(err, doc){
-            	    if (err) {
-            	        console.log(err);
-            	    }
-        			resolve(fileId);
-        		});
-        	});
-        });
-      }
-    });
-  }
-  
   async getGridFile(fileId, mode) {
     return this.isConnected.then((isConnected) => {
       if (isConnected) {

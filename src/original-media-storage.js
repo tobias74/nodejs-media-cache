@@ -12,23 +12,13 @@ module.exports = function(options) {
 
 
 
-  var storeOriginalMediaByStream = function(stream, contentType, callback) {
-    mongoDbFacade.storeFileByStream(stream, contentType, {
+  var storeOriginalMediaByStream = async function(stream, contentType) {
+    let fileId = await mongoDbFacade.storeFileByStream(stream, contentType, {
         content_type: contentType
-    }).then(function(file) {
-      callback(null, file);
     });
+    return fileId;
   };
 
-  var storeOriginalMedia = function(filePath, contentType, callback) {
-    mongoDbFacade.storeFileByPath(filePath, {
-      content_type: contentType
-    }).then((fileId) => {
-      callback({
-        fileId: fileId
-      });
-    });
-  };
 
   var getMedia = function(stringFileId, callback) {
     mongoDbFacade.getGridFile(stringFileId, 'r').then((gridFile) => {
@@ -62,7 +52,6 @@ module.exports = function(options) {
   };
 
   return {
-    storeOriginalMedia: storeOriginalMedia,
     getMedia: getMedia,
     deleteMedia: deleteMedia,
     getRangedMediaStream: getRangedMediaStream,

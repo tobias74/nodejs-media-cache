@@ -15,6 +15,8 @@ module.exports = function(options) {
 
   var originalMediaStorage = require('./original-media-storage')(options);
 
+  var fs = require('fs');
+  
   var gm = require('gm');
 
   var imageMagick = gm.subClass({
@@ -99,14 +101,12 @@ module.exports = function(options) {
     return mongoDbFacade.getGridFileStream(stringFileId, options);
   };
 
-  var storeVideoByFile = function(filePath, contentType, callback) {
-    mongoDbFacade.storeFileByPath(filePath, {
+  var storeVideoByFile = async function(filePath, contentType) {
+    var readStream = fs.createReadStream(filePath);
+    let fileId = await mongoDbFacade.storeFileByStream(readStream, contentType, {
       content_type: contentType
-    }).then((fileId) => {
-      callback({
-        fileId: fileId
-      });
     });
+    return fileId;
   };
 
 
@@ -190,23 +190,23 @@ module.exports = function(options) {
               console.log('finished transcoding.');
               async.series({
                 'mp4': function(callback) {
-                  storeVideoByFile(targetStream.path + '.mp4', 'video/mp4', function(fileData) {
-                    callback(null, fileData.fileId);
+                  storeVideoByFile(targetStream.path + '.mp4', 'video/mp4').then(function(fileId) {
+                    callback(null, fileId);
                   });
                 },
                 'ogv': function(callback) {
-                  storeVideoByFile(targetStream.path + '.ogv', 'video/ogv', function(fileData) {
-                    callback(null, fileData.fileId);
+                  storeVideoByFile(targetStream.path + '.ogv', 'video/ogv').then(function(fileId) {
+                    callback(null, fileId);
                   });
                 },
                 'webm': function(callback) {
-                  storeVideoByFile(targetStream.path + '.webm', 'video/webm', function(fileData) {
-                    callback(null, fileData.fileId);
+                  storeVideoByFile(targetStream.path + '.webm', 'video/webm').then(function(fileId) {
+                    callback(null, fileId);
                   });
                 },
                 'jpg': function(callback) {
-                  storeVideoByFile(targetStream.path + '.jpg', 'image/jpg', function(fileData) {
-                    callback(null, fileData.fileId);
+                  storeVideoByFile(targetStream.path + '.jpg', 'image/jpg').then(function(fileId) {
+                    callback(null, fileId);
                   });
                 }
               }, function(err, results) {
@@ -252,11 +252,11 @@ module.exports = function(options) {
                 mongoDbFacade.storeFileByStream(stdout, null, {
                     id: mediaId,
                     size: imageSize.name
-                }).then((file) => {
+                }).then((fileId) => {
                   introduceCachedImage({
                     imageId: mediaId,
                     imageSize: imageSize.name,
-                    fileId: file._id
+                    fileId: fileId
                   }, function() {
                     callback(null, 'tobias');
                   });
