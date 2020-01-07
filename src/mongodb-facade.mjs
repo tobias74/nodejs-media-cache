@@ -77,7 +77,7 @@ export class MongoDbFacade {
       var myResult = results[0];
   
       if (!myResult) {
-        throw new Error("in getGridFile, we could not get the gridfile with id " + fileId);  
+        return Promise.reject("in getGridFile, we could not get the gridfile with id " + fileId);
       } 
       
       return myResult;

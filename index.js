@@ -69,8 +69,13 @@ let startListeningForTranscodingJobs = function(callback) {
         ch.consume(queueName, function(msg) {
           console.log(" [x] Received %s", msg.content.toString());
           var rabbitData = JSON.parse(msg.content.toString());
-          executeTranscodingJob(rabbitData.mediaId, function() {
-            callback(rabbitData.bundleData);
+          executeTranscodingJob(rabbitData.mediaId, function(err) {
+            if (err) {
+              console.log('the transscoding job seems to habe been obsolete...');            
+            }
+            else {
+              callback(rabbitData.bundleData);
+            }
             ch.ack(msg);
           });
         }, {
@@ -163,12 +168,13 @@ var findTranscodedVideo = function(payloadId, callback) {
 var deleteTranscodedVideos = function(payloadId) {
 
   findTranscodedVideo(payloadId, function(transcodedVideoData) {
-
-    transcodedMediaStorage.deleteGridFile(transcodedVideoData.mp4);
-    transcodedMediaStorage.deleteGridFile(transcodedVideoData.ogv);
-    transcodedMediaStorage.deleteGridFile(transcodedVideoData.webm);
-    transcodedMediaStorage.deleteGridFile(transcodedVideoData.jpg);
-
+    if (transcodedVideoData) {
+      transcodedMediaStorage.deleteGridFile(transcodedVideoData.mp4);
+      transcodedMediaStorage.deleteGridFile(transcodedVideoData.ogv);
+      transcodedMediaStorage.deleteGridFile(transcodedVideoData.webm);
+      transcodedMediaStorage.deleteGridFile(transcodedVideoData.jpg);
+    }
+    
     transcodedMediaStorage.getCollection('transcoded-videos').then((collection) => {
       collection.remove({
         payloadId: payloadId
@@ -179,17 +185,13 @@ var deleteTranscodedVideos = function(payloadId) {
         console.log('deleted: ' + countDoc);
       });
     });
+    
   });
 };
 
 var executeTranscodingJob = function(mediaId, mainCallback) {
 
   originalMediaStorage.getGridFile(mediaId).then(function(mediaFile) {
-    //console.log(mediaFile);
-    if (!mediaFile) {
-      mainCallback('error, media not found for transcoding');
-      return;
-    }
     var simpleType = mediaFile.contentType.substring(0, 5).toLowerCase();
 
     if (simpleType === 'video') {
@@ -291,6 +293,9 @@ var executeTranscodingJob = function(mediaId, mainCallback) {
       console.log('no file type?');
     }
 
+  }).catch(function(err){
+    console.log('we did get an error, which is not nessecarilly a bad thing: ', err);
+    mainCallback(err);
   });
 
 
