@@ -6,7 +6,6 @@ var temp = require('temp');
 var child_process = require('child_process');
 var async = require('async');
 
-
 var amqpVideoConverterChannel;
 var amqpImageConverterChannel;
 
@@ -17,11 +16,11 @@ var transcodedMediaStorage;
 var self = {};
 
 
-
 var initializeRabbitMQ = async function(){
 
   return new Promise((resolve, reject) => {
-    amqp.connect('amqp://' + self.options.rabbitMqUser + ':' + self.options.rabbitMqPassword + '@' + self.options.rabbitMqUrl, function(err, conn) {
+
+    amqp.connect(self.options.rabbitMqUri, function(err, conn) {
       if (err) {
         console.log(err);
       }
@@ -41,48 +40,58 @@ var initializeRabbitMQ = async function(){
       
       resolve();
     });
-    
+
   });
 };
 
 
 let startListeningForTranscodingJobs = function(callback) {
 
-
-  amqp.connect('amqp://' + self.options.rabbitMqUser + ':' + self.options.rabbitMqPassword + '@' + self.options.rabbitMqUrl, function(err, conn) {
+  amqp.connect(self.options.rabbitMqUri, function(err, conn) {
     if (err) {
       console.log(err);
-    }
-
-    [self.options.converterQueueNameImages, self.options.converterQueueNameVideos].forEach(function(queueName) {
-      conn.createChannel(function(err, ch) {
-        if (err) {
-          console.log(err);
-        }
-        ch.assertQueue(queueName, {
-          durable: true
-        });
-        ch.prefetch(1);
-
-        console.log(" [*] Waiting for messages in %s. To exit press CTRL+C", queueName);
-
-        ch.consume(queueName, function(msg) {
-          console.log(" [x] Received %s", msg.content.toString());
-          var rabbitData = JSON.parse(msg.content.toString());
-          executeTranscodingJob(rabbitData.mediaId, function(err) {
-            if (err) {
-              console.log('the transscoding job seems to habe been obsolete...');            
-            }
-            else {
-              callback(rabbitData.bundleData);
-            }
-            ch.ack(msg);
+    } else {
+      conn.on('close', () => {
+        console.log('got a close for rabbit my, reconnecting...');
+        startListeningForTranscodingJobs(callback);
+      });
+      conn.on('error', () => {
+        console.log('got an error for rabbit my, reconnecting...');
+        startListeningForTranscodingJobs(callback);
+      });
+      
+      [self.options.converterQueueNameImages, self.options.converterQueueNameVideos].forEach(function(queueName) {
+        conn.createChannel(function(err, ch) {
+          if (err) {
+            console.log(err);
+          }
+          ch.assertQueue(queueName, {
+            durable: true
           });
-        }, {
-          noAck: false
+          ch.prefetch(1);
+  
+          console.log(" [*] Waiting for messages in %s. To exit press CTRL+C", queueName);
+  
+          ch.consume(queueName, function(msg) {
+            console.log(" [x] Received %s", msg.content.toString());
+            var rabbitData = JSON.parse(msg.content.toString());
+            executeTranscodingJob(rabbitData.mediaId, function(err) {
+              if (err) {
+                console.log('the transscoding job seems to habe been obsolete...');            
+              }
+              else {
+                callback(rabbitData.bundleData);
+              }
+              ch.ack(msg);
+            });
+          }, {
+            noAck: false
+          });
         });
       });
-    });
+      
+    }
+
 
   });
 };
@@ -380,10 +389,10 @@ module.exports = {
       self.options = options;
       
       var es = await import('./src/mongodb-facade.mjs');
-  
+
       var mongoDbNameOriginals = options.mongoDbNameOriginals || 'ems_original_media';
       originalMediaStorage = new es.MongoDbFacade(options.mongoDbUrl, mongoDbNameOriginals);
-  
+
       var mongoDbNameTranscoded = options.mongoDbNameTranscoded || 'ems_cached_media';
       transcodedMediaStorage = new es.MongoDbFacade(options.mongoDbUrl, mongoDbNameTranscoded);
 
